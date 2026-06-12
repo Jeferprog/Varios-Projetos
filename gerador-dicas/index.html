@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gerador de Dicas — Cards de Novidades</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ui-bg: #f1f3f6;
+    --ui-card: #ffffff;
+    --ui-text: #2b3445;
+    --ui-muted: #6b7686;
+    --ui-border: #dde3ea;
+    --ui-accent: #0d7a43;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background: var(--ui-bg);
+    color: var(--ui-text);
+  }
+  header.app {
+    background: var(--ui-card);
+    border-bottom: 1px solid var(--ui-border);
+    padding: 14px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header.app h1 { font-family: 'Poppins', sans-serif; font-size: 18px; margin: 0; }
+  header.app span { color: var(--ui-muted); font-size: 13px; }
+
+  .layout {
+    display: grid;
+    grid-template-columns: 420px 1fr;
+    gap: 24px;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 980px) { .layout { grid-template-columns: 1fr; } }
+
+  /* ---------- Painel de edição ---------- */
+  .panel {
+    background: var(--ui-card);
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    padding: 20px;
+    align-self: start;
+  }
+  .panel h2 {
+    font-family: 'Poppins', sans-serif;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--ui-muted);
+    margin: 18px 0 8px;
+  }
+  .panel h2:first-child { margin-top: 0; }
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 500; color: var(--ui-muted); margin-bottom: 4px; }
+  .field input[type="text"], .field textarea, .field select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--ui-border);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 14px;
+    background: #fbfcfd;
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  .themes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .theme-dot {
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    border: 3px solid transparent;
+    cursor: pointer;
+  }
+  .theme-dot.active { border-color: var(--ui-text); }
+
+  .item-editor {
+    border: 1px solid var(--ui-border);
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: #fbfcfd;
+  }
+  .item-editor .item-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .item-editor .item-head strong { font-size: 12px; color: var(--ui-muted); }
+  .item-editor button.remove {
+    border: none; background: none; color: #c0392b; cursor: pointer; font-size: 12px; font-weight: 700;
+  }
+  button.btn {
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 14px;
+    border: none;
+    border-radius: 10px;
+    padding: 11px 18px;
+    cursor: pointer;
+  }
+  .btn.ghost { background: #eef1f5; color: var(--ui-text); }
+  .btn.primary { background: var(--ui-accent); color: #fff; width: 100%; margin-top: 16px; }
+  .btn.primary:hover { filter: brightness(1.08); }
+
+  /* ---------- Preview / Card ---------- */
+  .preview-wrap { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+  .preview-scale { width: 520px; max-width: 100%; }
+
+  .card {
+    /* Variáveis do tema do card */
+    --c-bg-1: #0d7a43;
+    --c-bg-2: #0a6437;
+    --c-deco: rgba(255,255,255,.08);
+    --c-badge-text: #0d7a43;
+    --c-subtitle: #8fe3b4;
+    --c-inner-title: #0d7a43;
+
+    font-family: 'Poppins', sans-serif;
+    width: 1040px;
+    min-height: 1300px;
+    background: linear-gradient(160deg, var(--c-bg-1) 0%, var(--c-bg-2) 100%);
+    border-radius: 48px;
+    padding: 90px 80px;
+    position: relative;
+    overflow: hidden;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    transform: scale(.5);
+    transform-origin: top left;
+  }
+  /* O contêiner reserva o espaço do card em escala 50% */
+  .preview-scale { height: 650px; }
+
+  .card::before, .card::after {
+    content: '';
+    position: absolute;
+    border: 60px solid var(--c-deco);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  .card::before { width: 420px; height: 420px; top: 120px; right: -160px; }
+  .card::after { width: 380px; height: 380px; bottom: -140px; left: -150px; }
+
+  .card .badge {
+    display: inline-block;
+    align-self: flex-start;
+    background: #fff;
+    color: var(--c-badge-text);
+    font-weight: 800;
+    font-size: 30px;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: 18px 38px;
+    border-radius: 999px;
+    position: relative;
+    z-index: 1;
+  }
+  .card .title {
+    font-size: 84px;
+    font-weight: 800;
+    line-height: 1.12;
+    margin: 70px 0 0;
+    position: relative;
+    z-index: 1;
+  }
+  .card .subtitle {
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--c-subtitle);
+    margin: 28px 0 0;
+    position: relative;
+    z-index: 1;
+  }
+  .card .description {
+    font-family: 'Roboto', sans-serif;
+    font-size: 38px;
+    line-height: 1.45;
+    margin: 56px 0 0;
+    position: relative;
+    z-index: 1;
+  }
+  .card .description b { font-weight: 700; }
+
+  .card .inner {
+    background: #fff;
+    color: #3a4354;
+    border-radius: 44px;
+    padding: 64px 60px;
+    margin-top: 70px;
+    position: relative;
+    z-index: 1;
+  }
+  .card .inner h3 {
+    color: var(--c-inner-title);
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: .03em;
+    text-transform: uppercase;
+    margin: 0 0 36px;
+  }
+  .card .inner p {
+    font-family: 'Roboto', sans-serif;
+    font-size: 36px;
+    line-height: 1.5;
+    margin: 0 0 34px;
+  }
+  .card .inner p:last-child { margin-bottom: 0; }
+  .card .inner p b { color: #2b3445; font-weight: 700; }
+
+  .hint { font-size: 12px; color: var(--ui-muted); text-align: center; max-width: 480px; }
+</style>
+</head>
+<body>
+
+<header class="app">
+  <h1>💡 Gerador de Dicas</h1>
+  <span>Crie cards de novidades que chamam a atenção do colaborador</span>
+</header>
+
+<div class="layout">
+
+  <!-- ================= PAINEL ================= -->
+  <div class="panel">
+    <h2>Selo</h2>
+    <div class="row">
+      <div class="field">
+        <label for="badgeType">Tipo</label>
+        <select id="badgeType">
+          <option value="NOVIDADE">Novidade</option>
+          <option value="DICA">Dica</option>
+          <option value="ATENÇÃO">Atenção</option>
+          <option value="MELHORIA">Melhoria</option>
+          <option value="TUTORIAL">Tutorial</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="badgeNumber">Número</label>
+        <input type="text" id="badgeNumber" value="03" maxlength="3">
+      </div>
+    </div>
+
+    <h2>Conteúdo</h2>
+    <div class="row">
+      <div class="field">
+        <label for="emoji">Emoji do título</label>
+        <input type="text" id="emoji" value="🏢" maxlength="4">
+      </div>
+      <div class="field">
+        <label for="title">Título</label>
+        <input type="text" id="title" value="Seguro Automático PJ">
+      </div>
+    </div>
+    <div class="field">
+      <label for="subtitle">Subtítulo (opcional)</label>
+      <input type="text" id="subtitle" value="(Cálculo de Sócios)">
+    </div>
+    <div class="field">
+      <label for="description">O que é</label>
+      <textarea id="description">O sistema agora busca e cruza as informações dos sócios da empresa (PJ) de forma 100% automática.</textarea>
+    </div>
+
+    <h2>O que muda na prática?</h2>
+    <div id="items"></div>
+    <button class="btn ghost" id="addItem" type="button">+ Adicionar item</button>
+
+    <h2>Tema</h2>
+    <div class="themes" id="themes"></div>
+
+    <button class="btn primary" id="download" type="button">⬇️ Baixar PNG</button>
+  </div>
+
+  <!-- ================= PREVIEW ================= -->
+  <div class="preview-wrap">
+    <div class="preview-scale">
+      <div class="card" id="card">
+        <span class="badge" id="pBadge">NOVIDADE #03</span>
+        <h1 class="title" id="pTitle">🏢 Seguro Automático PJ</h1>
+        <p class="subtitle" id="pSubtitle">(Cálculo de Sócios)</p>
+        <p class="description" id="pDescription"><b>O que é:</b> </p>
+        <div class="inner">
+          <h3 id="pInnerTitle">🚀 O QUE MUDA NA PRÁTICA?</h3>
+          <div id="pItems"></div>
+        </div>
+      </div>
+    </div>
+    <p class="hint">O card é exportado em alta resolução (1040 × altura automática, proporção ideal para WhatsApp, e-mail e murais internos).</p>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---------- Temas ----------
+  var THEMES = [
+    { name: 'Verde',   bg1: '#0d7a43', bg2: '#0a6437', subtitle: '#8fe3b4', accent: '#0d7a43' },
+    { name: 'Azul',    bg1: '#1456a8', bg2: '#0e4185', subtitle: '#9cc7ff', accent: '#1456a8' },
+    { name: 'Roxo',    bg1: '#5b2d91', bg2: '#472272', subtitle: '#cdaaff', accent: '#5b2d91' },
+    { name: 'Laranja', bg1: '#c75100', bg2: '#a34200', subtitle: '#ffd0a3', accent: '#c75100' },
+    { name: 'Vinho',   bg1: '#8e1b3a', bg2: '#70142d', subtitle: '#ffb3c6', accent: '#8e1b3a' },
+    { name: 'Grafite', bg1: '#37424f', bg2: '#28313b', subtitle: '#a9c2d9', accent: '#37424f' }
+  ];
+
+  // ---------- Estado ----------
+  var state = {
+    theme: 0,
+    items: [
+      { lead: 'Fim da burocracia', text: 'Elimina totalmente a necessidade de você informar a quantidade e os dados de cada sócio manualmente.' },
+      { lead: 'Seguro Prestamista na hora', text: 'Com os dados importados, o sistema calcula a idade e o prêmio do prestamista PJ com muito mais precisão.' }
+    ]
+  };
+
+  var $ = function (id) { return document.getElementById(id); };
+
+  // ---------- Render do card ----------
+  function render() {
+    var num = $('badgeNumber').value.trim();
+    $('pBadge').textContent = $('badgeType').value + (num ? ' #' + num.padStart(2, '0') : '');
+
+    var emoji = $('emoji').value.trim();
+    $('pTitle').textContent = (emoji ? emoji + ' ' : '') + $('title').value;
+
+    var sub = $('subtitle').value.trim();
+    $('pSubtitle').textContent = sub;
+    $('pSubtitle').style.display = sub ? '' : 'none';
+
+    var desc = $('pDescription');
+    desc.innerHTML = '';
+    var b = document.createElement('b');
+    b.textContent = 'O que é: ';
+    desc.appendChild(b);
+    desc.appendChild(document.createTextNode($('description').value));
+
+    var pItems = $('pItems');
+    pItems.innerHTML = '';
+    state.items.forEach(function (item) {
+      var p = document.createElement('p');
+      if (item.lead.trim()) {
+        var lead = document.createElement('b');
+        lead.textContent = item.lead.trim() + ': ';
+        p.appendChild(lead);
+      }
+      p.appendChild(document.createTextNode(item.text));
+      pItems.appendChild(p);
+    });
+
+    var t = THEMES[state.theme];
+    var card = $('card');
+    card.style.setProperty('--c-bg-1', t.bg1);
+    card.style.setProperty('--c-bg-2', t.bg2);
+    card.style.setProperty('--c-subtitle', t.subtitle);
+    card.style.setProperty('--c-badge-text', t.accent);
+    card.style.setProperty('--c-inner-title', t.accent);
+
+    // Ajusta a altura reservada do preview (escala 50%)
+    requestAnimationFrame(function () {
+      document.querySelector('.preview-scale').style.height = (card.offsetHeight / 2) + 'px';
+    });
+  }
+
+  // ---------- Editor de itens ----------
+  function renderItemEditors() {
+    var box = $('items');
+    box.innerHTML = '';
+    state.items.forEach(function (item, i) {
+      var wrap = document.createElement('div');
+      wrap.className = 'item-editor';
+
+      var head = document.createElement('div');
+      head.className = 'item-head';
+      var label = document.createElement('strong');
+      label.textContent = 'Item ' + (i + 1);
+      head.appendChild(label);
+      if (state.items.length > 1) {
+        var rm = document.createElement('button');
+        rm.className = 'remove';
+        rm.type = 'button';
+        rm.textContent = 'remover';
+        rm.addEventListener('click', function () {
+          state.items.splice(i, 1);
+          renderItemEditors();
+          render();
+        });
+        head.appendChild(rm);
+      }
+      wrap.appendChild(head);
+
+      var leadField = document.createElement('div');
+      leadField.className = 'field';
+      var leadInput = document.createElement('input');
+      leadInput.type = 'text';
+      leadInput.placeholder = 'Destaque (ex.: Fim da burocracia)';
+      leadInput.value = item.lead;
+      leadInput.addEventListener('input', function () { item.lead = leadInput.value; render(); });
+      leadField.appendChild(leadInput);
+      wrap.appendChild(leadField);
+
+      var textField = document.createElement('div');
+      textField.className = 'field';
+      var textInput = document.createElement('textarea');
+      textInput.placeholder = 'Explicação do benefício';
+      textInput.value = item.text;
+      textInput.addEventListener('input', function () { item.text = textInput.value; render(); });
+      textField.appendChild(textInput);
+      wrap.appendChild(textField);
+
+      box.appendChild(wrap);
+    });
+  }
+
+  $('addItem').addEventListener('click', function () {
+    state.items.push({ lead: '', text: '' });
+    renderItemEditors();
+    render();
+  });
+
+  // ---------- Temas ----------
+  THEMES.forEach(function (t, i) {
+    var dot = document.createElement('button');
+    dot.type = 'button';
+    dot.className = 'theme-dot' + (i === state.theme ? ' active' : '');
+    dot.style.background = 'linear-gradient(160deg, ' + t.bg1 + ', ' + t.bg2 + ')';
+    dot.title = t.name;
+    dot.addEventListener('click', function () {
+      state.theme = i;
+      document.querySelectorAll('.theme-dot').forEach(function (d) { d.classList.remove('active'); });
+      dot.classList.add('active');
+      render();
+    });
+    $('themes').appendChild(dot);
+  });
+
+  // ---------- Inputs simples ----------
+  ['badgeType', 'badgeNumber', 'emoji', 'title', 'subtitle', 'description'].forEach(function (id) {
+    $(id).addEventListener('input', render);
+    $(id).addEventListener('change', render);
+  });
+
+  // ---------- Exportar PNG ----------
+  $('download').addEventListener('click', function () {
+    if (typeof html2canvas === 'undefined') {
+      alert('Não foi possível carregar a biblioteca de exportação (html2canvas). Verifique sua conexão e recarregue a página.');
+      return;
+    }
+    var card = $('card');
+    var prevTransform = card.style.transform;
+    card.style.transform = 'none';
+    html2canvas(card, { scale: 1, backgroundColor: null }).then(function (canvas) {
+      card.style.transform = prevTransform;
+      var link = document.createElement('a');
+      var num = $('badgeNumber').value.trim() || '00';
+      link.download = ($('badgeType').value + '-' + num + '.png').toLowerCase().replace(/\s+/g, '-');
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    }).catch(function (err) {
+      card.style.transform = prevTransform;
+      alert('Falha ao exportar a imagem: ' + err);
+    });
+  });
+
+  // ---------- Inicialização ----------
+  renderItemEditors();
+  render();
+})();
+</script>
+</body>
+</html>
